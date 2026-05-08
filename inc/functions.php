@@ -538,5 +538,105 @@ function hapus_admin_komentar($id)
 }
 
 
+// ===============================================================
+// FUNGSI GANTI PASSWORD ADMIN
+// ===============================================================
+// Digunakan untuk mengganti password user admin yang sedang di-edit
+// Data $POST yang dikirim dari modal di edit.php
+// ===============================================================
+
+function ganti_password($DATA)
+{
+    global $koneksi;
+    global $waktu_sekarang;
+    
+    // ==========================================
+    // 1. AMBIL DATA DARI FORM
+    // ==========================================
+    $id_user = mysqli_real_escape_string($koneksi, $DATA['id_user_password'] ?? '');
+    $pass_lama = $DATA['pass_lama'] ?? '';
+    $pass_baru = $DATA['pass_baru'] ?? '';
+    $pass_baru_confirm = $DATA['pass_baru_confirm'] ?? '';
+    
+    // ==========================================
+    // 2. VALIDASI KOSONG
+    // ==========================================
+    $errors = [];
+    
+    if (empty($id_user)) $errors[] = "ID User tidak ditemukan!";
+    if (empty($pass_lama)) $errors[] = "Password lama tidak boleh kosong!";
+    if (empty($pass_baru)) $errors[] = "Password baru tidak boleh kosong!";
+    if (empty($pass_baru_confirm)) $errors[] = "Konfirmasi password tidak boleh kosong!";
+    
+    if (!empty($errors)) {
+        $_SESSION['form_errors'] = $errors;
+        return false;
+    }
+    
+    // ==========================================
+    // 3. CEK PASSWORD LAMA DI DATABASE
+    // ==========================================
+    $sql_cek = "SELECT password FROM tbl_users WHERE id_user = '$id_user'";
+    $result_cek = mysqli_query($koneksi, $sql_cek);
+    
+    if (mysqli_num_rows($result_cek) == 0) {
+        $_SESSION['form_errors'] = ["User tidak ditemukan di database!"];
+        return false;
+    }
+    
+    $user_data = mysqli_fetch_assoc($result_cek);
+    
+    // Verifikasi password lama (karena pakai password_hash di registrasi)
+    if (!password_verify($pass_lama, $user_data['password'])) {
+        $_SESSION['form_errors'] = ["Password lama yang Anda masukkan SALAH!"];
+        return false;
+    }
+    
+    // ==========================================
+    // 4. VALIDASI PASSWORD BARU
+    // ==========================================
+    if (strlen($pass_baru) < 6) {
+        $_SESSION['form_errors'] = ["Password baru minimal 6 karakter!"];
+        return false;
+    }
+    
+    if ($pass_baru !== $pass_baru_confirm) {
+        $_SESSION['form_errors'] = ["Konfirmasi password baru tidak sesuai!"];
+        return false;
+    }
+    
+    // Cek apakah password baru sama dengan password lama
+    if (password_verify($pass_baru, $user_data['password'])) {
+        $_SESSION['form_errors'] = ["Password baru tidak boleh sama dengan password lama!"];
+        return false;
+    }
+    
+    // ==========================================
+    // 5. UPDATE PASSWORD KE DATABASE
+    // ==========================================
+    $password_hash = password_hash($pass_baru, PASSWORD_DEFAULT);
+    
+    $sql_update = "UPDATE tbl_users SET 
+                    password = '$password_hash',
+                    updated_at = '$waktu_sekarang'
+                WHERE id_user = '$id_user'";
+    
+    if (mysqli_query($koneksi, $sql_update)) {
+        if (mysqli_affected_rows($koneksi) > 0) {
+            $_SESSION['success_message'] = "Password berhasil diubah!";
+            return true;
+        } else {
+            $_SESSION['form_errors'] = ["Tidak ada perubahan pada password."];
+            return false;
+        }
+    } else {
+        $_SESSION['form_errors'] = ["Gagal mengupdate password: " . mysqli_error($koneksi)];
+        return false;
+    }
+}
+
+
+
+
 ?>
 

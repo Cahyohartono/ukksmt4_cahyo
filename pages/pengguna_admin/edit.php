@@ -57,6 +57,28 @@ while ($row = mysqli_fetch_assoc($edit)) {
     $foto = $row['path_photo_admin'];
 }
 
+
+// ==========================================
+// PROSES GANTI PASSWORD (VIA MODAL)
+// ==========================================
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['ganti_password'])) {
+    
+    $result = ganti_password($_POST);
+    
+    if ($result) {
+        echo "<script>
+            alert('Password berhasil diubah!');
+            $('#modalGantiPassword').modal('hide');
+        </script>";
+    } else {
+        if (isset($_SESSION['form_errors'])) {
+            echo "<script>alert('" . implode("\\n", $_SESSION['form_errors']) . "');</script>";
+            unset($_SESSION['form_errors']);
+        }
+    }
+}
+
+
 /* Debugging tambahan untuk memastikan data alamat_admin benar-benar ada dan dapat diakses dengan benar. Gunakan $data_admin untuk debug
 
 // Gunakan $data_admin untuk debug
@@ -171,6 +193,14 @@ if ($data_admin) {
                         </div>
                     </div>
 
+                    <div class="form-group row">
+                        <div class="login-text text-center">
+                            <p class="mt-3 text-black">Mau ganti password? 
+                                <a href="#" class="text-primary" data-toggle="modal" data-target="#modalGantiPassword">Ganti Password</a> user admin !
+                            </p>
+                        </div>
+                    </div>
+
                     <input type="text" name="role" value="Admin" hidden>
 
                     <div class="form-group row"></div>
@@ -199,3 +229,66 @@ if ($data_admin) {
     </section>
     <!-- /.content -->
 <!-- </div> -->
+
+<!-- ========================================== -->
+<!-- MODAL GANTI PASSWORD -->
+<!-- ========================================== -->
+<div class="modal fade" id="modalGantiPassword">
+    <div class="modal-dialog modal-md">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h4 class="modal-title">
+                    <i class="fas fa-key"></i> Ganti Password Admin
+                </h4>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <form method="post" id="formGantiPassword">
+                <div class="modal-body">
+                    <!-- ID USER yang tertangkap dari edit.php (hidden) -->
+                    <input type="hidden" name="id_user_password" value="<?= $id_user; ?>">
+                    <input type="hidden" name="action" value="ganti_password">
+
+                    <!-- Informasi admin yang sedang diedit -->
+                    <div class="alert alert-info">
+                        <strong>Admin:</strong> <?= $nama; ?> (ID: <?= $id_user; ?>)
+                    </div>
+
+                    <!-- Password Lama -->
+                    <div class="form-group">
+                        <label>Password Lama <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" name="pass_lama" placeholder="Masukkan password lama" required>
+                    </div>
+
+                    <!-- Password Baru -->
+                    <div class="form-group">
+                        <label>Password Baru <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" name="pass_baru" placeholder="Minimal 6 karakter" required>
+                        <small class="text-muted">Password minimal 6 karakter</small>
+                    </div>
+
+                    <!-- Konfirmasi Password Baru -->
+                    <div class="form-group">
+                        <label>Konfirmasi Password Baru <span class="text-danger">*</span></label>
+                        <input type="password" class="form-control" name="pass_baru_confirm" placeholder="Ulangi password baru" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    <button type="submit" name="ganti_password" class="btn btn-warning">
+                        <i class="fas fa-save"></i> Ganti Password
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- JS SEDERHANA (Optional, untuk reset modal) -->
+<script>
+$(document).ready(function() {
+    // Reset form saat modal ditutup
+    $('#modalGantiPassword').on('hidden.bs.modal', function() {
+        $('#formGantiPassword')[0].reset();
+    });
+});
+</script>

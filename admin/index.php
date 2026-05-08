@@ -36,7 +36,7 @@ if (@$_SESSION['email']) {
 $email = $_SESSION['email'];
 // echo $email;
 
-$sql_login = tampil("SELECT `tbl_admin`.nama_admin, `tbl_users`.email, `tbl_tipe_user`.tipe_user FROM `tbl_admin` 
+$sql_login = tampil("SELECT `tbl_admin`.nama_admin, `tbl_users`.email,`tbl_users`.id_user, `tbl_tipe_user`.tipe_user FROM `tbl_admin` 
 	LEFT JOIN `tbl_users` ON `tbl_admin`.`id_user` = `tbl_users`.`id_user` 
 	LEFT JOIN `tbl_tipe_user` ON `tbl_users`.`role` = `tbl_tipe_user`.`id_tipe_user` WHERE tbl_users.email='$email'; ");
 
@@ -45,6 +45,7 @@ $sql_login = tampil("SELECT `tbl_admin`.nama_admin, `tbl_users`.email, `tbl_tipe
 foreach ($sql_login as $user_login) {
     $nama_user = $user_login['nama_admin'];
     $tipe_user = $user_login['tipe_user'];
+    $id_user = $user_login['id_user'];
 }
 
 
@@ -91,16 +92,9 @@ foreach ($sql_login as $user_login) {
     </ul>
 
     <!-- SEARCH FORM -->
-    <form class="form-inline ml-3">
-      <div class="input-group input-group-sm">
-        <input class="form-control form-control-navbar" type="search" placeholder="Search" aria-label="Search">
-        <div class="input-group-append">
-          <button class="btn btn-navbar" type="submit">
-            <i class="fas fa-search"></i>
-          </button>
-        </div>
-      </div>
-    </form>
+    <span class="group-text ml-2 text-bold"><?= $nama_user; ?></span>
+    <span class="group-text ml-2 text-bold"> | </span>
+    <span class="group-text ml-2 text-bold"><?= $id_user; ?></span>
 
     <!-- Right navbar links -->
     <ul class="navbar-nav ml-auto">
