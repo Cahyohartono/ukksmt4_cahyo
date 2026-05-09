@@ -36,7 +36,6 @@
                 <tr>
                     <th>No</th>
                     <th>Nama</th>
-                    <th>Photo</th>
                     <th>Telepon</th>
                     <th>Email</th>
                     <th>Alamat</th>
@@ -58,16 +57,6 @@
                     ?>
                 <tr>
                     <td><?php echo $no; ?></td>
-                    <td>
-                        <img src="<?php 
-                            // Cek apakah ada foto di database dan file-nya benar-benar ada di folder
-                            if (!empty($user['path_photo_admin']) && file_exists('../images/users/admin/' . $user['path_photo_admin'])) {
-                                echo '../images/users/admin/' . $user['path_photo_admin'];
-                            } else {
-                                echo '../images/default-avatar.png';
-                            }
-                            ?>" alt="Photo" width="50" height="50" style="object-fit: cover; border-radius: 50%;">
-                    </td>
                     <td><?php echo $user['nama_admin']; ?></td>
                     <td><?php echo $user['telepon_admin']; ?></td>
                     <td><?php echo $user['email']; ?></td>
@@ -86,7 +75,6 @@
                 <tfoot>
                 <tr>
                     <th>No</th>
-                    <th>Photo</th>
                     <th>Nama</th>
                     <th>Telepon</th>
                     <th>Email</th>

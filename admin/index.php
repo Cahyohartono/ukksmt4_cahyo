@@ -56,7 +56,7 @@ foreach ($sql_login as $user_login) {
 <head>
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>Pliklinik Fix | Template Master</title>
+  <title>Repo - Pliklinik Fix | <?= $nama_user; ?></title>
   <!-- Tell the browser to be responsive to screen width -->
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -73,6 +73,26 @@ foreach ($sql_login as $user_login) {
   <link rel="stylesheet" href="../dist/css/adminlte.min.css">
   <!-- Google Font: Source Sans Pro -->
   <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700" rel="stylesheet">
+
+  <!-- Dropify CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Dropify/0.2.2/css/dropify.min.css">
+    
+    <!-- Optional: Custom style untuk Dropify -->
+    <style>
+        .dropify-wrapper {
+            border: 1px solid #ced4da;
+            border-radius: 0.25rem;
+        }
+        .dropify-wrapper .dropify-message p {
+            font-size: 14px;
+        }
+        .dropify-wrapper .dropify-preview .dropify-render img {
+            max-width: 100%;
+            max-height: 150px;
+        }
+    </style>
+
+
 </head>
 <body class="hold-transition sidebar-mini">
 <div class="wrapper">
@@ -427,6 +447,55 @@ include "../inc/menu.php";
       "autoWidth": false,
     });
   });
+</script>
+<!-- ============================================================= -->
+<!-- TAMBAHKAN DROPIFY JS DI SINI (setelah jQuery, sebelum AdminLTE) -->
+<!-- ============================================================= -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Dropify/0.2.2/js/dropify.min.js"></script>
+
+<!-- AdminLTE App -->
+<script src="../dist/js/adminlte.min.js"></script>
+<script src="../dist/js/pages/dashboard.js"></script>
+<script src="../dist/js/demo.js"></script>
+
+<!-- ============================================================= -->
+<!-- SCRIPT UNTUK INITIALIZE DROPIFY -->
+<!-- ============================================================= -->
+<script>
+    // $(function () {
+        // Initialize DataTables
+        // $("#example1").DataTable();
+        // $('#example2').DataTable({
+        //    "paging": true,
+        //    "lengthChange": false,
+        //    "searching": false,
+        //    "ordering": true,
+        //    "info": true,
+        //    "autoWidth": false,
+        // });
+        
+        // =============================================================
+        // TAMBAHKAN INISIALISASI DROPIFY UNTUK FILE INPUT
+        // =============================================================
+        $('.dropify').dropify({
+            messages: {
+                'default': 'Drag and drop or click to upload',
+                'replace': 'Drag and drop or click to replace',
+                'remove':  'Remove',
+                'error':   'Oops, something wrong appended.'
+            },
+            error: {
+                'fileSize': 'Ukuran file terlalu besar (maksimal 2MB).',
+                'fileExtension': 'Format file tidak diizinkan. Gunakan: jpg, jpeg, png, bmp'
+            }
+        });
+        
+        // Optional: Update label custom file input jika masih menggunakan bootstrap default
+        $('.custom-file-input').on('change', function() {
+            let fileName = $(this).val().split('\\').pop();
+            $(this).next('.custom-file-label').addClass("selected").html(fileName);
+        });
+    });
 </script>
 </body>
 </html>

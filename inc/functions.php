@@ -180,26 +180,427 @@ function tampil($DATA)
 }
 
 
-// ================================ //
-// Fungsi untuk proses tambah Admin \\
-// ================================ \\
-function tambah_admin($DATA, $FILES)
+/**
+ * =================================================================
+ * FUNGSI UPLOAD FILE
+ * =================================================================
+ * Fungsi ini digunakan untuk mengupload file gambar dengan berbagai
+ * konfigurasi yang bisa disesuaikan untuk setiap fitur.
+ * Sesuaikan parameter input sesuai fitur yang ada di aplikasi.
+ * 
+ * BISA DIGUNAKAN UNTUK:
+ * - Upload foto admin
+ * - Upload foto kasir
+ * - Upload foto dokter
+ * - Upload foto pasien
+ * - Upload foto produk obat
+ * - Dan lain-lain
+ * 
+ * @param array $file_input    File dari form input (contoh: $_FILES['photo'])
+ * @param string $identifier   Kode unik untuk identifikasi (contoh: id_admin, kode_obat, no_rm)
+ * @param string $target_dir   Folder tujuan penyimpanan (contoh: '../images/admin/')
+ * @param array $options       Opsi tambahan (ukuran, ekstensi, prefix, dll)
+ * 
+ * @return array               Hasil proses upload (success, message, filename, dll)
+ * =================================================================
+ */
+function upload_file($file_input, $identifier, $target_dir, $options = []) 
+{
+    // =============================================================
+    // BAGIAN 1: SETTING DEFAULT OPSI
+    // =============================================================
+    // Kita buatkan nilai default, ini antisipasi jika user saat upload data tidak memberikan opsi tambahan
+    $defaults = [
+        'max_size' => 1048576,                    // 1MB = 1024 x 1024 byte
+        'allowed_extensions' => ['jpg', 'jpeg', 'png', 'bmp'],  // Ekstensi yang diizinkan
+        'create_folder' => true,                  // Buat folder otomatis jika belum ada
+        'prefix' => ''                            // Awalan nama file (contoh: 'ADM', 'DR', 'PROD')
+    ];
+    
+    // Menggabungkan opsi user dengan default (opsi user akan menimpa default)
+    $options = array_merge($defaults, $options);
+    
+    // =============================================================
+    // BAGIAN 2: VALIDASI INPUT FILE
+    // =============================================================
+    // Cek apakah struktur file yang diupload valid
+    if (!isset($file_input['error']) || !isset($file_input['tmp_name'])) {
+        return [
+            'success' => false, 
+            'message' => 'File input tidak valid. Pastikan form menggunakan enctype="multipart/form-data"'
+        ];
+    }
+    
+    // Ambil informasi file yang diupload
+    $error      = $file_input['error'];      // Kode error (0 = sukses, 4 = tidak ada file)
+    $tmpName    = $file_input['tmp_name'];   // Lokasi temporary file di server
+    $namaAsli   = $file_input['name'];       // Nama asli file dari user (contoh: "foto selfie.jpg")
+    $ukuranFile = $file_input['size'];       // Ukuran file dalam byte
+    
+    // =============================================================
+    // BAGIAN 3: CEK APAKAH USER UPLOAD FILE
+    // =============================================================
+    // UPLOAD_ERR_NO_FILE = 4 artinya user tidak memilih file sama sekali
+    if ($error === UPLOAD_ERR_NO_FILE) {
+        return [
+            'success' => false, 
+            'message' => 'Tidak ada file yang diupload. Silakan pilih gambar terlebih dahulu.'
+        ];
+    }
+    
+    // =============================================================
+    // BAGIAN 4: CEK ERROR UPLOAD LAINNYA
+    // =============================================================
+    // UPLOAD_ERR_OK = 0 artinya upload berhasil
+    if ($error !== UPLOAD_ERR_OK) {
+        // Array untuk mapping kode error ke pesan yang mudah dipahami
+        $error_messages = [
+            UPLOAD_ERR_INI_SIZE   => 'Ukuran file melebihi batas maksimum server (upload_max_filesize)',
+            UPLOAD_ERR_FORM_SIZE  => 'Ukuran file melebihi batas maksimum form (MAX_FILE_SIZE)',
+            UPLOAD_ERR_PARTIAL    => 'File hanya terupload sebagian',
+            UPLOAD_ERR_NO_TMP_DIR => 'Folder temporary tidak ditemukan',
+            UPLOAD_ERR_CANT_WRITE => 'Gagal menulis file ke disk',
+            UPLOAD_ERR_EXTENSION  => 'Upload file dihentikan oleh ekstensi PHP'
+        ];
+        
+        $message = isset($error_messages[$error]) 
+                    ? $error_messages[$error] 
+                    : 'Terjadi error upload yang tidak diketahui (Kode: ' . $error . ')';
+        
+        return ['success' => false, 'message' => $message];
+    }
+    
+    // =============================================================
+    // BAGIAN 5: AMBIL EKSTENSI FILE
+    // =============================================================
+    // pathinfo() mengambil informasi path file
+    // PATHINFO_EXTENSION mengambil ekstensi file (contoh: dari "foto.jpg" menjadi "jpg")
+    $ekstensiFile = strtolower(pathinfo($namaAsli, PATHINFO_EXTENSION));
+    
+    // Debug: Untuk mempelajari, bisa lihat ekstensi yang terdeteksi
+    // echo "Ekstensi file: " . $ekstensiFile . "<br>";
+    
+    // =============================================================
+    // BAGIAN 6: VALIDASI EKSTENSI FILE
+    // =============================================================
+    // Cek apakah ekstensi file termasuk dalam daftar yang diizinkan
+    if (!in_array($ekstensiFile, $options['allowed_extensions'])) {
+        // Buat daftar ekstensi yang diizinkan menjadi string (contoh: "jpg, jpeg, png")
+        $ext_str = implode(', ', $options['allowed_extensions']);
+        
+        return [
+            'success' => false, 
+            'message' => "File yang anda upload BUKAN gambar. Yang diizinkan: $ext_str. 
+                        File anda berekstensi: .$ekstensiFile"
+        ];
+    }
+    
+    // =============================================================
+    // BAGIAN 7: VALIDASI UKURAN FILE
+    // =============================================================
+    // Cek apakah ukuran file melebihi batas maksimal
+    if ($ukuranFile > $options['max_size']) {
+        // Konversi byte ke MB agar lebih mudah dipahami user
+        $max_mb = round($options['max_size'] / 1048576, 2);
+        $file_mb = round($ukuranFile / 1048576, 2);
+        
+        return [
+            'success' => false, 
+            'message' => "Ukuran file terlalu besar. Maksimal {$max_mb}MB, 
+                        file anda {$file_mb}MB"
+        ];
+    }
+    
+    // =============================================================
+    // BAGIAN 8: MEMBUAT FOLDER JIKA BELUM ADA
+    // =============================================================
+    // Cek apakah folder tujuan sudah ada
+    if ($options['create_folder'] && !is_dir($target_dir)) {
+        // Buat folder dengan permission 0777 (bisa dibaca/tulis semua user)
+        // true artinya buat folder secara rekursif (termasuk parent folder jika belum ada)
+        if (!mkdir($target_dir, 0777, true)) {
+            return [
+                'success' => false, 
+                'message' => "Gagal membuat direktori: $target_dir. 
+                            Cek permission folder server Anda."
+            ];
+        }
+    }
+    
+    // =============================================================
+    // BAGIAN 9: MEMBUAT NAMA FILE BARU YANG UNIK
+    // =============================================================
+    // Mengapa perlu nama baru? 
+    // 1. Menghindari nama file duplikat
+    // 2. Menghindari karakter aneh (spasi, emoji, dll)
+    // 3. Keamanan lebih baik
+    // 4. Mudah diidentifikasi
+    
+    // Format nama file: PREFIX_IDENTIFIER_TIMESTAMP_UNIQID.EKSTENSI
+    // Contoh: ADM_admin123_20250115_67c8f4a2b3c1d.jpg
+    
+    $prefix = $options['prefix'] ? $options['prefix'] . '_' : '';  // Tambah underscore jika ada prefix
+    
+    // uniqid() menghasilkan string unik berdasarkan microtime
+    // Contoh output: "67c8f4a2b3c1d"
+    $unique_id = uniqid();
+    
+    // Bisa juga tambahkan timestamp untuk lebih informatif
+    $timestamp = date('Ymd_His');
+    
+    // Gabungkan semua menjadi nama file baru
+    $namaFileBaru = $prefix . $identifier . "_" . $timestamp . "_" . $unique_id . "." . $ekstensiFile;
+    // Contoh hasil: ADM_admin123_20250115_143025_67c8f4a2b3c1d.jpg
+    
+    // =============================================================
+    // BAGIAN 10: TENTUKAN PATH LENGKAP FILE
+    // =============================================================
+    // rtrim() menghapus slash di akhir target_dir (jika ada)
+    // lalu tambahkan slash dan nama file baru
+    $file_path = rtrim($target_dir, '/') . '/' . $namaFileBaru;
+    
+    // =============================================================
+    // BAGIAN 11: PINDAHKAN FILE DARI TEMPORARY KE FOLDER TUJUAN
+    // =============================================================
+    // move_uploaded_file() adalah fungsi KHUSUS untuk file upload
+    // Lebih aman daripada copy() atau rename() karena memvalidasi file asli dari upload
+    if (move_uploaded_file($tmpName, $file_path)) {
+        // =========================================================
+        // BAGIAN 12: UPLOAD SUKSES - KEMBALIKAN INFORMASI LENGKAP
+        // =========================================================
+        return [
+            'success' => true,                          // Status sukses
+            'message' => 'File berhasil diupload',      // Pesan sukses
+            'filename_asli' => $namaAsli,               // Nama asli dari user
+            'filename_tersimpan' => $namaFileBaru,      // Nama baru di server
+            'path' => $file_path,                       // Path lengkap file
+            'size' => $ukuranFile,                      // Ukuran file dalam byte
+            'size_mb' => round($ukuranFile / 1048576, 2), // Ukuran dalam MB
+            'extension' => $ekstensiFile,               // Ekstensi file
+            'identifier' => $identifier,                // Identitas yang digunakan
+            'prefix' => $options['prefix']              // Prefix yang digunakan
+        ];
+    } else {
+        // =========================================================
+        // BAGIAN 13: UPLOAD GAGAL
+        // =========================================================
+        return [
+            'success' => false, 
+            'message' => 'Gagal mengupload file. Cek permission folder ' . $target_dir . 
+                        ' Pastikan folder bisa ditulis oleh web server.'
+        ];
+    }
+}
+
+
+/**
+ * =================================================================
+ * FUNGSI TAMBAH ADMIN
+ * =================================================================
+ * Fungsi untuk menambahkan data admin baru beserta upload foto
+ * 
+ * @param array $DATA   Data dari $_POST (field text form)
+ * @param array $FILES  Data dari $_FILES (file upload)
+ * @return bool         True jika berhasil, False jika gagal
+ * =================================================================
+ */
+function tambah_admin($DATA, $FILES, $target_folder = '../images/users/image_all/')
 {
     global $koneksi;
-    global $tgl;
+    global $waktu_sekarang;
 
-    // 1. Ambil dan bersihkan data dari form
-        $id_admin = htmlspecialchars(trim($DATA['id_admin'] ?? ''));
-        $nama_admin = htmlspecialchars(trim($DATA['nama_admin'] ?? ''));
-        $alamat_admin = htmlspecialchars(trim($DATA['alamat_admin'] ?? ''));
-        $telepon = htmlspecialchars(trim($DATA['telepon'] ?? ''));
-        $jenkel = htmlspecialchars(trim($DATA['jenkel'] ?? ''));
-        $email = strtolower(htmlspecialchars(trim($DATA['email'] ?? '')));
-        $password = $DATA['password'] ?? '';
-        $password2 = $DATA['password2'] ?? '';
-        $role = htmlspecialchars(trim($DATA['role'] ?? ''));
+    // =============================================================
+    // BAGIAN 1: Ambil dan bersihkan data dari form
+    // =============================================================
+    $id_admin     = htmlspecialchars(trim($DATA['id_admin'] ?? ''));
+    $nama_admin   = htmlspecialchars(trim($DATA['nama_admin'] ?? ''));
+    $alamat_admin = htmlspecialchars(trim($DATA['alamat_admin'] ?? ''));
+    $telepon      = htmlspecialchars(trim($DATA['telepon'] ?? ''));
+    $jenkel       = htmlspecialchars(trim($DATA['jenkel'] ?? ''));
+    $email        = strtolower(htmlspecialchars(trim($DATA['email'] ?? '')));
+    $password     = $DATA['password'] ?? '';
+    $password2    = $DATA['password2'] ?? '';
+    $role         = htmlspecialchars(trim($DATA['role'] ?? ''));
 
-    // 2. Validasi form kosong
+    // =============================================================
+    // BAGIAN 2: Validasi form kosong
+    // =============================================================
+    $errors = [];
+    
+    if (empty($id_admin)) $errors[] = "ID Admin tidak boleh kosong";
+    if (empty($nama_admin)) $errors[] = "Nama Admin tidak boleh kosong";
+    if (empty($alamat_admin)) $errors[] = "Alamat Admin tidak boleh kosong";
+    if (empty($telepon)) $errors[] = "Telepon tidak boleh kosong";
+    if (empty($jenkel)) $errors[] = "Jenis Kelamin tidak boleh kosong";
+    if (empty($email)) $errors[] = "Email tidak boleh kosong";
+    if (empty($password)) $errors[] = "Password tidak boleh kosong";
+    if (empty($password2)) $errors[] = "Konfirmasi Password tidak boleh kosong";
+    if (empty($role)) $errors[] = "Role tidak boleh kosong";
+
+
+    // Jika ada error form kosong
+    if (!empty($errors)) {
+        $_SESSION['form_errors'] = $errors;
+        return false;
+    }
+
+    // =============================================================
+    // BAGIAN 3: Validasi email sudah terdaftar
+    // =============================================================
+    $result = mysqli_query($koneksi, "SELECT email FROM tbl_users WHERE email = '$email'");
+    if (mysqli_fetch_assoc($result)) {
+        $_SESSION['form_errors'] = ['Email yang diinput sudah terdaftar di database!'];
+        return false;
+    }
+
+    // =============================================================
+    // BAGIAN 4: Validasi konfirmasi password
+    // =============================================================
+    if ($password !== $password2) {
+        $_SESSION['form_errors'] = ['Konfirmasi Password tidak sesuai!'];
+        return false;
+    }
+
+    // =============================================================
+    // BAGIAN 5: Validasi minimal panjang password
+    // =============================================================
+    if (strlen($password) < 6) {
+        $_SESSION['form_errors'] = ['Password minimal 6 karakter!'];
+        return false;
+    }
+
+    // =============================================================
+    // PROSES UPLOAD FOTO (OPSIONAL) - PAKAI $target_folder
+    // =============================================================
+    $gambar_foto = null;
+    
+    if (isset($FILES['photo']) && $FILES['photo']['error'] !== UPLOAD_ERR_NO_FILE) {
+        
+        if ($FILES['photo']['error'] !== UPLOAD_ERR_OK) {
+            $_SESSION['form_errors'] = ['Terjadi error upload file'];
+            return false;
+        }
+        
+        // PAKAI $target_folder dari parameter!
+        $upload_result = upload_file(
+            $FILES['photo'],
+            $id_admin,
+            $target_folder,  // ← FLEKSIBEL, bisa diisi folder apapun
+            [
+                'max_size' => 1048576,
+                'allowed_extensions' => ['jpg', 'jpeg', 'png', 'bmp'],
+                'create_folder' => true,
+                'prefix' => 'ADM'
+            ]
+        );
+        
+        if ($upload_result['success']) {
+            $gambar_foto = $upload_result['filename_tersimpan'];
+        } else {
+            $_SESSION['form_errors'] = [$upload_result['message']];
+            return false;
+        }
+    }
+
+    // =============================================================
+    // BAGIAN 7: Enkripsi password
+    // =============================================================
+    $password_hash = password_hash($password, PASSWORD_DEFAULT);
+
+    // =============================================================
+    // BAGIAN 8: Transaksi database
+    // =============================================================
+    mysqli_begin_transaction($koneksi);
+
+    try {
+        // 🔴 PERBAIKAN UTAMA: Tambahkan kolom foto/path_photo_admin
+        // Sesuaikan nama kolom dengan database Anda:
+        // - Jika nama kolom adalah 'foto' → pakai 'foto'
+        // - Jika nama kolom adalah 'path_photo_admin' → pakai 'path_photo_admin'
+        
+        $sql_user = "INSERT INTO tbl_users SET 
+            id_user = '$id_admin',
+            email = '$email',
+            password = '$password_hash',
+            role = (SELECT id_tipe_user FROM tbl_tipe_user WHERE tipe_user = 'Admin'),
+            created_at = '$waktu_sekarang'";
+
+        if (!mysqli_query($koneksi, $sql_user)) {
+            throw new Exception("Gagal menambahkan user: " . mysqli_error($koneksi));
+        }
+
+        // Insert ke tbl_admin
+        $sql_admin = "INSERT INTO tbl_admin SET 
+            nama_admin = '$nama_admin',
+            alamat_admin = '$alamat_admin',
+            telepon_admin = '$telepon',
+            jenis_kelamin = '$jenkel',
+            path_photo_admin = " . ($gambar_foto ? "'$gambar_foto'" : "NULL") . ",
+            id_user = '$id_admin',
+            created_at = '$waktu_sekarang'";
+
+        if (!mysqli_query($koneksi, $sql_admin)) {
+            throw new Exception("Gagal menambahkan admin: " . mysqli_error($koneksi));
+        }
+
+        // Commit transaksi
+        mysqli_commit($koneksi);
+        
+        $_SESSION['success_message'] = "Data berhasil ditambahkan!";
+        
+        // 🔴 PERBAIKAN: Hapus echo script di sini, redirect di file tambah.php
+        return true;
+
+    } catch (Exception $e) {
+        // Rollback jika ada error
+        mysqli_rollback($koneksi);
+        
+        // Hapus file foto yang sudah terupload jika database gagal
+        if (!empty($gambar_foto)) {
+            $file_path = '../images/users/admin/' . $gambar_foto;
+            if (file_exists($file_path)) {
+                unlink($file_path);
+            }
+        }
+        
+        $_SESSION['form_errors'] = [$e->getMessage()];
+        return false;
+    }
+}
+
+/**
+ * =================================================================
+ * FUNGSI EDIT ADMIN
+ * =================================================================
+ * Fungsi untuk mengupdate data admin 
+ * - Upload foto OPSIONAL (tidak wajib)
+ * - Jika upload foto baru, foto lama akan dihapus dari folder
+ * - Jika tidak upload foto, nama foto tetap sama didatabase
+ * 
+ * @param array     $DATA   Data dari $_POST
+ * @param array     $FILES  Data dari $_FILES
+ * @param string    $target_folder Folder tujuan upload foto
+ * @return bool     True jika berhasil, False jika gagal
+ * =================================================================
+ */
+function edit_admin($DATA, $FILES, $target_folder = '../images/users/admin/')
+{
+    global $koneksi;
+    global $waktu_sekarang;
+
+    // =============================================================
+    // BAGIAN 1: Ambil dan bersihkan data dari form
+    // =============================================================
+    $id_admin     = htmlspecialchars(trim($DATA['id_admin'] ?? ''));
+    $nama_admin   = htmlspecialchars(trim($DATA['nama_admin'] ?? ''));
+    $alamat_admin = htmlspecialchars(trim($DATA['alamat_admin'] ?? ''));
+    $telepon      = htmlspecialchars(trim($DATA['telepon'] ?? ''));
+    $jenkel       = htmlspecialchars(trim($DATA['jenkel'] ?? ''));
+    $email        = strtolower(htmlspecialchars(trim($DATA['email'] ?? '')));
+
+    // =============================================================
+    // BAGIAN 2: Validasi form kosong
+    // =============================================================
     $errors = [];
     
     if (empty($id_admin)) {
@@ -220,224 +621,206 @@ function tambah_admin($DATA, $FILES)
     if (empty($email)) {
         $errors[] = "Email tidak boleh kosong";
     }
-    if (empty($password)) {
-        $errors[] = "Password tidak boleh kosong";
-    }
-    if (empty($password2)) {
-        $errors[] = "Konfirmasi Password tidak boleh kosong";
-    }
-    if (empty($role)) {
-        $errors[] = "Role tidak boleh kosong";
-    }
-    if (empty($telepon)) {
-        $errors[] = "Telepon tidak boleh kosong";
-    }
 
-    // Jika ada error form kosong
     if (!empty($errors)) {
         $_SESSION['form_errors'] = $errors;
         return false;
     }
 
-    // 3. Validasi email sudah terdaftar
-    $result = mysqli_query($koneksi, "SELECT email FROM tbl_users WHERE email = '$email'");
-    if (mysqli_fetch_assoc($result)) {
-        $_SESSION['form_errors'] = ['Email yang diinput sudah terdaftar di database!'];
-        return false;
-    }
-
-    // 4. Validasi konfirmasi password
-    if ($password !== $password2) {
-        $_SESSION['form_errors'] = ['Konfirmasi Password tidak sesuai!'];
-        return false;
-    }
-
-    // 5. Validasi minimal panjang password (opsional)
-    if (strlen($password) < 6) {
-        $_SESSION['form_errors'] = ['Password minimal 6 karakter!'];
-        return false;
-    }
-
-    // 6. Upload file foto
- //    $gambar_foto = upload_file_new($DATA, $FILES, '../images/users/');
+    // =============================================================
+    // BAGIAN 3: Ambil data foto LAMA dari database
+    // =============================================================
+    $query_foto = "SELECT path_photo_admin FROM tbl_admin WHERE id_user = '$id_admin'";
+    $result_foto = mysqli_query($koneksi, $query_foto);
+    $row_foto = mysqli_fetch_assoc($result_foto);
+    $foto_lama = $row_foto['path_photo_admin'] ?? '';
     
-       // upload_file_new sudah menampilkan alert, kita hanya perlu return false
+    // =============================================================
+    // BAGIAN 4: PROSES UPLOAD FOTO BARU (OPSIONAL)
+    // =============================================================
+    $foto_baru = $foto_lama; // Default: tetap pakai foto lama
     
-    //   if (!$gambar_foto) {
-    //    return false;
-    // } 
-
-    // 7. Enkripsi password
-    $password_hash = password_hash($password, PASSWORD_DEFAULT);
-
-    // 8. Mulai transaksi database (opsional, untuk keamanan)
-    mysqli_begin_transaction($koneksi);
-
-    try {
-        // Insert ke tbl_users
-        $sql_user = "INSERT INTO tbl_users SET 
-            id_user = '$id_admin',
-            email = '$email',
-            password = '$password_hash',
-            role = (SELECT id_tipe_user FROM tbl_tipe_user WHERE tipe_user = 'Admin'),
-            created_at = '$tgl'";
-
-        if (!mysqli_query($koneksi, $sql_user)) {
-            throw new Exception("Gagal menambahkan user: " . mysqli_error($koneksi));
-        }
-
-        // Insert ke tbl_admin
-        $sql_admin = "INSERT INTO tbl_admin SET 
-            nama_admin = '$nama_admin',
-            alamat_admin = '$alamat_admin',
-            telepon_admin = '$telepon',
-            jenis_kelamin = '$jenkel',
-            id_user = '$id_admin',
-            created_at = '$tgl'";
-
-        if (!mysqli_query($koneksi, $sql_admin)) {
-            throw new Exception("Gagal menambahkan admin: " . mysqli_error($koneksi));
-        }
-
-        // Commit transaksi
-        mysqli_commit($koneksi);
+    // Cek apakah user mengupload file baru
+    if (isset($FILES['photo']) && $FILES['photo']['error'] !== UPLOAD_ERR_NO_FILE) {
         
-        $_SESSION['success_message'] = "Data berhasil ditambahkan!";
-
-        // Gunakan JavaScript redirect sebagai alternatif jika header bermasalah
-        echo "<script>
-            alert('Data berhasil ditambahkan!');
-            window.location.href = 'index.php?pages=pengguna_admin';
-        </script>";
-        exit;
-
-        return true;
-
-    } catch (Exception $e) {
-        // Rollback jika ada error
-        mysqli_rollback($koneksi);
-        $_SESSION['form_errors'] = [$e->getMessage()];
-        return false;
+        // Cek error upload
+        if ($FILES['photo']['error'] !== UPLOAD_ERR_OK) {
+            $_SESSION['form_errors'] = ['Terjadi error saat upload file'];
+            return false;
+        }
+        
+        // Proses upload file photo baru
+        $upload_result = upload_file(
+            $FILES['photo'],
+            $id_admin,
+            $target_folder,
+            [
+                'max_size' => 1048576,
+                'allowed_extensions' => ['jpg', 'jpeg', 'png', 'bmp'],
+                'create_folder' => true,
+                'prefix' => 'ADM'
+            ]
+        );
+        
+        if ($upload_result['success']) {
+            // Upload berhasil, ambil nama file baru
+            $foto_baru = $upload_result['filename_tersimpan'];
+            
+            // HAPUS FILE FOTO LAMA yang ada di folder jika ada dan berbeda dengan foto baru
+            if (!empty($foto_lama) && $foto_lama != $foto_baru) {
+                $file_path_lama = rtrim($target_folder, '/') . '/' . $foto_lama;
+                if (file_exists($file_path_lama)) {
+                    unlink($file_path_lama); // Hapus file foto lama
+                }
+            }
+        } else {
+            $_SESSION['form_errors'] = [$upload_result['message']];
+            return false;
+        }
     }
-}
-
-
-// ================================ //
-// Fungsi untuk proses Edit Admin \\
-// ================================ \\
-
-function edit_admin($DATA, $FILES)
-{
-    global $koneksi;
-    global $tgl;
-
-    // 1. Ambil dan bersihkan data dari form
-        $id_admin = htmlspecialchars(trim($DATA['id_admin'] ?? ''));
-        $nama_admin = htmlspecialchars(trim($DATA['nama_admin'] ?? ''));
-        $alamat_admin = htmlspecialchars(trim($DATA['alamat_admin'] ?? ''));
-        $telepon = htmlspecialchars(trim($DATA['telepon'] ?? ''));
-        $jenkel = htmlspecialchars(trim($DATA['jenkel'] ?? ''));
-        $email = strtolower(htmlspecialchars(trim($DATA['email'] ?? '')));
-
-
-    // Validasi form kosong, email, password, dll (sama seperti fungsi tambah_admin)
-    $errors = [];
+    // Jika tidak upload file, variable $foto_baru kita isi dengan variable $foto_lama
     
-    if (empty($nama_admin)) {
-        $errors[] = "Nama Admin tidak boleh kosong";
-    }
-    if (empty($alamat_admin)) {
-        $errors[] = "Alamat Admin tidak boleh kosong";
-    }
-    if (empty($telepon)) {
-        $errors[] = "Telepon tidak boleh kosong";
-    }
-    if (empty($jenkel)) {
-        $errors[] = "Jenis Kelamin tidak boleh kosong";
-    }
-
-
-    // Jika ada error form kosong
-    if (!empty($errors)) {
-        $_SESSION['form_errors'] = $errors;
-        return false;
-    }
-
-    // 2. Update data di database
+    // =============================================================
+    // BAGIAN 5: Update database
+    // =============================================================
+    
+    // Update tbl_users, email dan password tidak diupdate disini, hanya updated_at saja
     $sql_user = "UPDATE tbl_users SET 
-        email = '$email',
-        updated_at = '$tgl'
-        WHERE id_user = '$id_admin'";   
-
+        updated_at = '$waktu_sekarang'
+        WHERE id_user = '$id_admin'";
+    
+    // Update tbl_admin (dengan atau tanpa foto, karena sudah di atur diatas)
     $sql_admin = "UPDATE tbl_admin SET 
         nama_admin = '$nama_admin',
         alamat_admin = '$alamat_admin',
         telepon_admin = '$telepon',
         jenis_kelamin = '$jenkel',
-        updated_at = '$tgl'
+        path_photo_admin = '$foto_baru',
+        updated_at = '$waktu_sekarang'
         WHERE id_user = '$id_admin'";
-
-    if (mysqli_query($koneksi, $sql_user) && mysqli_query($koneksi, $sql_admin)) {
-        $_SESSION['success_message'] = "Data berhasil diupdate!";   
-        echo "<script>
-            alert('Data berhasil diupdate!');
-            window.location.href = 'index.php?pages=pengguna_admin';
-        </script>";
-        exit;   
-
+    
+    // Eksekusi query
+    $result_user = mysqli_query($koneksi, $sql_user);
+    $result_admin = mysqli_query($koneksi, $sql_admin);
+    
+    if ($result_user && $result_admin) {
+        $_SESSION['success_message'] = "Data berhasil diupdate!";
         return true;
-    } else {    
+    } else {
+        // Jika update gagal dan ada foto baru yang sudah terupload, hapus foto tersebut
+        if ($foto_baru != $foto_lama && !empty($foto_baru)) {
+            $file_path_baru = rtrim($target_folder, '/') . '/' . $foto_baru;
+            if (file_exists($file_path_baru)) {
+                unlink($file_path_baru);
+            }
+        }
+        
         $_SESSION['form_errors'] = ["Gagal mengupdate data: " . mysqli_error($koneksi)];
         return false;
-    }   
-
-
-
+    }
 }
 
 
-// ================================ //
-// Fungsi untuk proses Hapus Admin \\
-// ================================ \\
-
-function hapus_admin($id)
+/**
+ * =================================================================
+ * FUNGSI HAPUS ADMIN (DENGAN TRANSACTION)
+ * =================================================================
+ * Untuk tabel berelasi, transaction WAJIB digunakan
+ * 
+ * @param string    $id  ID User/Admin yang akan dihapus
+ * @param string    $target_folder Folder tempat penyimpanan foto
+ * @return bool     True jika berhasil, False jika gagal
+ * =================================================================
+ */
+function hapus_admin($id, $target_folder = '../images/users/admin/')
 {
     global $koneksi;
     
-    // Mulai transaction
+    // =============================================================
+    // BAGIAN 1: Ambil nama file foto SEBELUM transaksi dimulai
+    // =============================================================
+    $query_foto = "SELECT path_photo_admin FROM tbl_admin WHERE id_user = '$id'";
+    $result_foto = mysqli_query($koneksi, $query_foto);
+    $row_foto = mysqli_fetch_assoc($result_foto);
+    $foto = $row_foto['path_photo_admin'] ?? '';
+    
+    // =============================================================
+    // BAGIAN 2: Mulai transaksi
+    // =============================================================
     mysqli_begin_transaction($koneksi);
     
     try {
-        // Hapus tbl_admin dulu
+        // Langkah 1: Hapus dari tbl_admin (child table)
         $sql_admin = "DELETE FROM tbl_admin WHERE id_user = '$id'";
         if (!mysqli_query($koneksi, $sql_admin)) {
             throw new Exception("Gagal menghapus data admin: " . mysqli_error($koneksi));
         }
         
-        // Hapus tbl_users
+        // Langkah 2: Hapus dari tbl_users (parent table)
         $sql_user = "DELETE FROM tbl_users WHERE id_user = '$id'";
         if (!mysqli_query($koneksi, $sql_user)) {
             throw new Exception("Gagal menghapus data user: " . mysqli_error($koneksi));
         }
         
-        // Commit jika semua berhasil
+        // =========================================================
+        // Jika semua query berhasil, COMMIT (simpan perubahan)
+        // =========================================================
         mysqli_commit($koneksi);
         
-        $_SESSION['success_message'] = "Data berhasil dihapus!";   
-        echo "<script>
-            alert('Data berhasil dihapus!');
-            window.location.href = 'index.php?pages=pengguna_admin';
-        </script>";
-        exit;
+        // =========================================================
+        // Setelah database berhasil dihapus, hapus file foto
+        // =========================================================
+        if (!empty($foto)) {
+            $file_path = rtrim($target_folder, '/') . '/' . $foto;
+            if (file_exists($file_path)) {
+                unlink($file_path);
+            }
+        }
+        
+        $_SESSION['success_message'] = "Data admin dan foto berhasil dihapus!";
+        return true;
         
     } catch (Exception $e) {
-        // Rollback jika ada error
+        // =========================================================
+        // Jika ada error, ROLLBACK (batalkan semua perubahan)
+        // =========================================================
         mysqli_rollback($koneksi);
         $_SESSION['form_errors'] = [$e->getMessage()];
         return false;
     }
 }
 
+
+function hapus_admin_sederhana($id, $target_folder = '../images/users/admin/')
+{
+    global $koneksi;
+    
+    // Ambil nama file foto
+    $query_foto = "SELECT path_photo_admin FROM tbl_admin WHERE id_user = '$id'";
+    $result_foto = mysqli_query($koneksi, $query_foto);
+    $row_foto = mysqli_fetch_assoc($result_foto);
+    $foto = $row_foto['path_photo_admin'] ?? '';
+    
+    // Hapus tbl_admin (child) dulu
+    $sql_admin = "DELETE FROM tbl_admin WHERE id_user = '$id'";
+    $hapus_admin = mysqli_query($koneksi, $sql_admin);
+    
+    // Hapus tbl_users (parent)
+    $sql_user = "DELETE FROM tbl_users WHERE id_user = '$id'";
+    $hapus_user = mysqli_query($koneksi, $sql_user);
+    
+    if ($hapus_admin && $hapus_user) {
+        if (!empty($foto)) {
+            $file_path = rtrim($target_folder, '/') . '/' . $foto;
+            if (file_exists($file_path)) {
+                unlink($file_path);
+            }
+        }
+        return true;
+    }
+    
+    return false;
+}
 
 
 function hapus_admin_komentar($id)
@@ -536,7 +919,6 @@ function hapus_admin_komentar($id)
         return false;
     }
 }
-
 
 // ===============================================================
 // FUNGSI GANTI PASSWORD ADMIN
