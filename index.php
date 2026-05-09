@@ -2,7 +2,7 @@
 <html lang="en">
 
 <head>
-	<title>Aplikasi Poliklinik | Poliklinik Fix</title>
+	<title>Repo - Aplikasi Poliklinik | Poliklinik Fix</title>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 	<link rel="shortcut icon" type="image/x-icon" href="assets/img/favicon.ico">

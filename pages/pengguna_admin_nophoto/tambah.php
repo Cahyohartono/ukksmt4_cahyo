@@ -5,14 +5,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['tambahdata'])) {
     // Jalankan fungsi tambahAdmin dengan mengambil semua data teks form ($_POST) dan data file yang diunggah ($_FILES), kemudian simpan hasilnya (sukses/gagal) ke dalam variabel $result
     // $result: Variabel untuk menampung nilai balik (hasil) dari fungsi tambahAdmin. Biasanya berisi true (jika berhasil) atau false/pesan error (jika gagal)
 
-// $result = tambah_admin($_POST, $_FILES); // folder default
-    $result = tambah_admin($_POST, $_FILES, '../images/users/admin/');
+    $result = tambah_admin($_POST, $_FILES);
     
     if ($result) {
         // Redirect jika berhasil
         echo "<script>
             alert('Data berhasil ditambahkan!');
-            document.location.href = 'index.php?pages=pengguna_admin';
+            document.location.href = 'index.php?pages=admin';
         </script>";
         exit;
     } else {
@@ -27,11 +26,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['tambahdata'])) {
             echo "</ul></div>";
             unset($_SESSION['form_errors']);
         }
-        // Tampilkan success message jika ada
-        if (isset($_SESSION['success_message'])) {
-            echo "<div class='alert alert-success'>" . $_SESSION['success_message'] . "</div>";
-            unset($_SESSION['success_message']);
-        }
     }
 }
 
@@ -40,9 +34,6 @@ $sql_tipe_user = "SELECT id_tipe_user FROM tbl_tipe_user WHERE tipe_user='Admin'
 $hasil = mysqli_query($koneksi, $sql_tipe_user);
 $row = mysqli_fetch_assoc($hasil);
 $id_user = autonumber("tbl_users", "id_user", 7, "ADM");
-
-// Hapus session error setelah ditampilkan
-unset($_SESSION['form_errors']);
 
 ?>
 <!-- <div class="content-wrapper" style="min-height: 1203.52px;"> -->
@@ -147,24 +138,6 @@ unset($_SESSION['form_errors']);
                             <input type="password" class="form-control" id="inputConfirmPassword" name="password2" placeholder="Confirm Password">
                         </div>
                     </div>
-
-                    <!-- CHANGE TRACKING START: User added photo upload input here -->
-                    <div class="form-group row">
-                        <label for="photoAdmin" class="col-sm-2 col-form-label">Photo Admin</label>
-                        <div class="col-sm-10">
-                            <div class="input-group">
-                                <input type="file" name="photo" class="form-control" id="photoAdmin">
-                                <div class="input-group-append">
-                                    <span class="input-group-text">Upload</span>
-                                </div>
-                            </div>
-                            <small class="form-text text-muted">
-                                <i class="fa fa-info-circle"></i> 
-                                Foto tidak wajib diupload. Format: JPG, JPEG, PNG, BMP. Maksimal 1MB
-                            </small>
-                        </div>
-                    </div>
-                    <!-- CHANGE TRACKING END: Photo upload input block -->
 
                     <input type="text" name="role" value="Admin" hidden>
 

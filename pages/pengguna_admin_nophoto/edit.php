@@ -5,13 +5,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['editdata'])) {
     // Jalankan fungsi editAdmin dengan mengambil semua data teks form ($_POST) dan data file yang diunggah ($_FILES), kemudian simpan hasilnya (sukses/gagal) ke dalam variabel $result
     // $result: Variabel untuk menampung nilai balik (hasil) dari fungsi editAdmin. Biasanya berisi true (jika berhasil) atau false/pesan error (jika gagal)
 
-    $result = edit_admin($_POST, $_FILES,'../images/users/admin/');
+    $result = edit_admin($_POST, $_FILES);
     
     if ($result) {
         // Redirect jika berhasil
         echo "<script>
             alert('Data berhasil diubah!');
-            document.location.href = 'index.php?pages=pengguna_admin';
+            document.location.href = 'index.php?pages=admin';
         </script>";
         exit;
     } else {
@@ -55,28 +55,6 @@ while ($row = mysqli_fetch_assoc($edit)) {
     $jenkel = $row['jenis_kelamin'];
     $telp = $row['telepon_admin'];
     $foto = $row['path_photo_admin'];
-}
-
-// ==================================================================================
-// PERBAIKAN: Gunakan, hati-hati gunakan variable $data_admin, jangan variable $row
-// ==================================================================================
-
-// HAPUS atau komen baris ini:
-// $foto = $row['path_photo_admin'] ?? '';
-
-// Gunakan ini:
-$foto = $data_admin['path_photo_admin'] ?? '';
-
-// Debug (opsional, digunakan buat memastikan data foto benar-benar ada dan bisa diakses dengan benar, matikan saat sudah berhasil)
-// echo "DEBUG: Foto dari database = '$foto'<br>";
-// echo "DEBUG: Path lengkap = '../images/users/admin/" . $foto . "'<br>";
-// echo "DEBUG: File exists? " . (file_exists('../images/users/admin/' . $foto) ? 'YES' : 'NO') . "<br>";
-
-// Cek apakah foto ada di database dan file-nya benar-benar ada di folder
-if (!empty($foto) && file_exists('../images/users/admin/' . $foto)) {
-    $image_path = '../images/users/admin/' . $foto;
-} else {
-    $image_path = '../images/default-avatar.png'; // Default avatar
 }
 
 
@@ -216,30 +194,12 @@ if ($data_admin) {
                     </div>
 
                     <div class="form-group row">
-                        <label class="col-sm-2 col-form-label">Photo Admin Saat Ini</label>
-                        <div class="col-sm-10">
-                            <img src="<?= $image_path; ?>" 
-                                alt="Current Photo" 
-                                style="width: 100px; height: 100px; object-fit: cover; border-radius: 50%;">
-                        </div>
-                    </div>
-
-                    <div class="form-group row">
-                        <label class="col-sm-2 col-form-label">Ganti Photo</label>
-                        <div class="col-sm-10">
-                            <div class="custom-file">
-                                <input type="file" class="custom-file-input" id="photoAdmin" name="photo" accept="image/*">
-                                <label class="custom-file-label" for="photoAdmin">Pilih file baru</label>
-                            </div>
-                            <small class="text-muted">Kosongkan jika tidak ingin mengganti photo</small>
-                        </div>
                         <div class="login-text text-center">
                             <p class="mt-3 text-black">Mau ganti password? 
                                 <a href="#" class="text-primary" data-toggle="modal" data-target="#modalGantiPassword">Ganti Password</a> user admin !
                             </p>
                         </div>
                     </div>
-
 
                     <input type="text" name="role" value="Admin" hidden>
 
