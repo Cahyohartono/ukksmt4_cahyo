@@ -16,12 +16,8 @@
         case 'delete':
             include "delete.php";
             break;
-        case 'proses_tambah':
-            include "proses_tambah.php";
-            break;
-        case 'proses_delete':
-            include "proses_delete.php";
-            break;
+
+
         case 'laporan':
             include "../laporan/laporan_user.php";
             break;
